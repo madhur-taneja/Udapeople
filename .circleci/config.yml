@@ -2,6 +2,22 @@ version: 2.1
 orbs:
     node: circleci/node@1.1.6
 jobs:
+    # Testing Code
+    testing-frontend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd frontend && npm i && npm run test
+
+    testing-backend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd backend && npm i && npm run test
+
+    # Building Code
     building-frontend:
         executor:
             name: node/default
@@ -19,6 +35,13 @@ jobs:
 workflows:
     building:
         jobs:
+            # Running Test Jobs
+            - testing-frontend
+            - testing-backend:
+                requires:
+                    - testing-frontend
+              
+            # Running Build Jobs
             - building-backend                
             - building-frontend:
                 requires:
