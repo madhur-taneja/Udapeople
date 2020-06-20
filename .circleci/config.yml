@@ -8,13 +8,13 @@ jobs:
             name: node/default
         steps:
             - checkout
-            - run: cd backend && npm i && npm audit --audit-level=critical
+            - run: cd backend && npm i && npm audit fix --audit-level=critical --force
     analyzing-frontend:
         executor:
             name: node/default
         steps:
             - checkout
-            - run: cd frontend && npm i && npm audit --audit-level=critical
+            - run: cd frontend && npm i && npm audit fix --audit-level=critical --force
     
     # Testing Code
     testing-frontend:
