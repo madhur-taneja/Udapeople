@@ -37,12 +37,13 @@ workflows:
         jobs:
             # Running Test Jobs
             - testing-frontend
-            - testing-backend:
-                requires:
-                    - testing-frontend
+            - testing-backend
               
             # Running Build Jobs
-            - building-backend                
+            - building-backend:
+                requires:
+                    - testing-backend
             - building-frontend:
                 requires:
+                    - testing-frontend
                     - building-backend
