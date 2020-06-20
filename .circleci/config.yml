@@ -2,6 +2,20 @@ version: 2.1
 orbs:
     node: circleci/node@1.1.6
 jobs:
+    # Analyzing Code
+    analyzing-backend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd backend && npm i && npm audit --audit-level=critical
+    analyzing-frontend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd frontend && npm i && npm audit --audit-level=critical
+    
     # Testing Code
     testing-frontend:
         executor:
@@ -33,11 +47,19 @@ jobs:
             - run: cd backend && npm i && npm run build
       
 workflows:
-    building:
+    analyzing-testing-building:
         jobs:
+            # Running Analysis Jobs
+            - analyzing-backend
+            - analyzing-frontend
+            
             # Running Test Jobs
-            - testing-frontend
-            - testing-backend
+            - testing-frontend:
+                requires:
+                    - analyzing-frontend
+            - testing-backend:
+                requires:
+                    - analyzing-backend
               
             # Running Build Jobs
             - building-backend:
