@@ -1,17 +1,25 @@
 version: 2.1
 orbs:
-  node: circleci/node@1.1.6
+    node: circleci/node@1.1.6
 jobs:
-  build-and-test:
-    executor:
-      name: node/default
-    steps:
-      - checkout
-      - node/with-cache:
-          steps:
-            - run: npm install
-            - run: npm test
+    building-frontend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd frontend && npm i && npm run build 
+
+    building-backend:
+        executor:
+            name: node/default
+        steps:
+            - checkout
+            - run: cd backend && npm i && npm run build
+      
 workflows:
-    build-and-test:
-      jobs:
-        - build-and-test
+    building:
+        jobs:
+            - building-backend                
+            - building-frontend:
+                requires:
+                    - building-backend
