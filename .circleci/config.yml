@@ -2,6 +2,20 @@ version: 2.1
 orbs:
     node: circleci/node@1.1.6
 jobs:
+    # Creating Infrastructure
+    creating-infrastructure:
+        docker:
+            - image: amazon/aws-cli
+        steps:
+            - checkout
+            - run:
+                name: Ensure backend infrastructure exist
+                command: |
+                    aws cloudformation create-stack \
+                        --template-body file://.circleci/files/backend.yml \
+                        --stack-name udapeople-stack \
+                        --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+
     # Analyzing Code
     analyzing-backend:
         executor:
@@ -47,7 +61,7 @@ jobs:
             - run: cd backend && npm i && npm run build
       
 workflows:
-    analyzing-testing-building:
+    analyzing-testing-building-deploying:
         jobs:
             # Running Analysis Jobs
             - analyzing-backend
@@ -69,3 +83,6 @@ workflows:
                 requires:
                     - testing-frontend
                     - building-backend
+            # Running Infrastructure Jobs
+            - creating-infrastructure
+            
