@@ -9,16 +9,33 @@ jobs:
         steps:
             - checkout
             - run:
-                name: Ensure backend infrastructure exist
-                command: |
-                    aws cloudformation create-stack \
-                        --template-body file://.circleci/files/backend.yml \
-                        --stack-name udapeople-frontend-stack \
-                        --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
-                    aws cloudformation create-stack \
-                        --template-body file://.circleci/files/frontend.yml \
-                        --stack-name udapeople-backend-stack \
-                        --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+                  name: Ensure backend infrastructure exist
+                  command: |
+                      aws cloudformation create-stack \
+                          --template-body file://.circleci/files/backend.yml \
+                          --stack-name udapeople-frontend-stack \
+                          --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+                      aws cloudformation create-stack \
+                          --template-body file://.circleci/files/frontend.yml \
+                          --stack-name udapeople-backend-stack \
+                          --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+
+    # Configure Infrastructure
+    configure-infrastructure:
+        docker:
+            - image: python:3.7-alpine3.11
+        steps:
+            - checkout
+            - add_ssh_keys:
+                  fingerprints: ["4f:83:67:a2:06:a2:88:b4:94:9a:b9:83:01:85:b1:54"] # You can get this ID in the section where you registered the SSH Key
+            - run:
+                  name: Install dependencies
+                  command: |
+                      apk add --update ansible # install the dependencies needed for your playbook
+            - run:
+                  name: Configure server
+                  command: | 
+                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml
 
     # Analyzing Code
     analyzing-backend:
@@ -33,7 +50,7 @@ jobs:
         steps:
             - checkout
             - run: cd frontend && npm i && npm audit fix --audit-level=critical --force
-    
+
     # Testing Code
     testing-frontend:
         executor:
@@ -55,7 +72,7 @@ jobs:
             name: node/default
         steps:
             - checkout
-            - run: cd frontend && npm i && npm run build 
+            - run: cd frontend && npm i && npm run build
 
     building-backend:
         executor:
@@ -63,30 +80,33 @@ jobs:
         steps:
             - checkout
             - run: cd backend && npm i && npm run build
-      
+
 workflows:
     analyzing-testing-building-deploying:
         jobs:
             # Running Analysis Jobs
-            - analyzing-backend
-            - analyzing-frontend
-            
+            # - analyzing-backend
+            # - analyzing-frontend
+
             # Running Test Jobs
-            - testing-frontend:
-                requires:
-                    - analyzing-frontend
-            - testing-backend:
-                requires:
-                    - analyzing-backend
-              
+            # - testing-frontend:
+            #     requires:
+            #         - analyzing-frontend
+            # - testing-backend:
+            #     requires:
+            #         - analyzing-backend
+
             # Running Build Jobs
-            - building-backend:
-                requires:
-                    - testing-backend
-            - building-frontend:
-                requires:
-                    - testing-frontend
-                    - building-backend
+            # - building-backend:
+            #     requires:
+            #         - testing-backend
+            # - building-frontend:
+            #     requires:
+            #         - testing-frontend
+            #         - building-backend
+
             # Running Infrastructure Jobs
-            - creating-infrastructure
-            
+            #- creating-infrastructure
+            - configure-infrastructure
+            #      requires:
+            #          - creating-infrastructure
