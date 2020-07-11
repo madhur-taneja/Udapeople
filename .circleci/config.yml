@@ -19,6 +19,17 @@ jobs:
                           --template-body file://.circleci/files/frontend.yml \
                           --stack-name udapeople-frontend-stack \
                           --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+            - run:
+                  name: Ensure Cloudfront and Network infrastructure exist
+                  command: |
+                      aws cloudformation create-stack \
+                          --template-body file://.circleci/files/cloudfront.yml \
+                          --stack-name udapeople-cloudfront-stack \
+                          --parameters ParameterKey=WorkflowID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
+                      aws cloudformation create-stack \
+                          --template-body file://.circleci/files/network.yml \
+                          --stack-name udapeople-network-stack \
+                          --parameters ParameterKey=EnvironmentName,ParameterValue=${UdaPeople-Env}
 
     # Configure Infrastructure
     configure-infrastructure:
@@ -106,7 +117,7 @@ workflows:
             #         - building-backend
 
             # Running Infrastructure Jobs
-            #- creating-infrastructure
-            - configure-infrastructure
+            - creating-infrastructure
+            #- configure-infrastructure
             #      requires:
             #          - creating-infrastructure
