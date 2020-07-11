@@ -9,6 +9,8 @@
 -   name: "Cloning repo"
     become: true
     git:
-        repo: 'https://github.com/madhur-taneja/Udapeople.git'
+        # repo: 'git@github.com:madhur-taneja/Udapeople.git'
+        repo: git://github.com/madhur-taneja/Udapeople.git
         clone: yes
         dest: /srv/checkout
+        version: master
