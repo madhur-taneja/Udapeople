@@ -1,8 +1,12 @@
 ---
--   name: "clone repo"
-    become: true
-    git:
-        repo: git://github.com/madhur-taneja/Udapeople.git
-        clone: yes
-        dest: /srv/checkout
-        version: master
+        
+- name: "install dist from production build"
+    copy:
+      src: /root/project/backend/dist/
+      dest: /home/ubuntu
+      backup: yes
+        
+-   name: Executing node
+    shell: |
+        npm install
+        pm2 start dist/main.js

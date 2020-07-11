@@ -3,6 +3,11 @@
     become: true
     apt:
         upgrade: "yes"
+        
+-   name: "remove dependencies that are no longer required"
+    become: true
+    apt:
+        autoremove: yes
 
 -   name: "install dependencies."
     become: true
