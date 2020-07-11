@@ -1,15 +1,7 @@
 ---
--   name: "Installing git"
-    become: true
-    apt:
-        name: git
-        state: latest
-        update_cache: yes
-
--   name: "Cloning repo"
+-   name: "clone repo"
     become: true
     git:
-        # repo: 'git@github.com:madhur-taneja/Udapeople.git'
         repo: git://github.com/madhur-taneja/Udapeople.git
         clone: yes
         dest: /srv/checkout

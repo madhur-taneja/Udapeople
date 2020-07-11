@@ -20,6 +20,6 @@
 
     - setup:
   roles:
-#    - configure-prometheus-node-exporter
-#    - configure-server
+     - configure-server
      - deploy
+    # - configure-prometheus-node-exporter
