@@ -106,7 +106,7 @@ workflows:
             #         - building-backend
 
             # Running Infrastructure Jobs
-            - creating-infrastructure
-            - configure-infrastructure:
-                  requires:
-                      - creating-infrastructure
+            #- creating-infrastructure
+            - configure-infrastructure
+            #      requires:
+            #          - creating-infrastructure
