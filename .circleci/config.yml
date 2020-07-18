@@ -14,32 +14,31 @@ jobs:
                   name: Install dependencies
                   command: |
                       apk add --update ansible # install the dependencies needed for your playbook
+            - attach_workspace:
+                  at: .circleci/ansible/
             - run:
                   name: configuring server
-                  command: | 
+                  command: |
+                      cat ./.circleci/ansible/inventory 
+                      pwd
                       cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
 
     # Extracting IP
     extracting-inventory:
-        working_directory: .circleci/ansible/
+        working_directory: ~/project
         docker:
             - image: circleci/node:8.2.1
         steps:
             - checkout
-            - run:
-                name: Extracting the backend IP Address from Memstash so that Frontend can use it
-                command: |
-                    ip=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)
-                    echo "[web]" > inventory
-                    echo $ip >> inventory
-            - persist_to_workspace:
-                root: .circleci/ansible/
-                paths:
-                    - inventory
+            # - run:
+            #     name: Extracting the backend IP Address from Memstash so that Frontend can use it
+            #     command: |
+            #         ip=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)
+            #         echo "[web]" > ./.circleci/ansible/inventory
+            #         echo $ip >> ./.circleci/ansible/inventory
     
     # Creating Inventory with new EC2's IP address
     creating-inventory:
-        working_directory: .circleci/ansible/
         docker:
             - image: amazon/aws-cli
         steps:
@@ -47,15 +46,27 @@ jobs:
             - run:
                 name: Get the IP Address of the EC2 instance 
                 command: |
+                    echo -e "[web]\n" > ./.circleci/ansible/inventory
                     aws ec2 describe-instances \
                     --query 'Reservations[*].Instances[*].PublicIpAddress' \
-                    --output text >> inventory
+                    --output text >> ./.circleci/ansible/inventory
+                    cat ./.circleci/ansible/inventory
+                    pwd
             - run:
                 name: Storing the Backend IP Address to Memstash as Frontend needs it 
                 command: |
-                    ip_address=$(tail -n 1 inventory)
+                    ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
                     echo $ip_address
                     curl -H "Content-Type: text/plain" -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request PUT --data $ip_address https://api.memstash.io/values/backend
+            - run:
+                name: Install tar/gzip utility
+                command: |
+                    yum -y install tar
+                    yum -y install gzip
+            - persist_to_workspace:
+                root: .circleci/ansible
+                paths:
+                    - inventory
 
     # Creating Infrastructure
     creating-infrastructure:
@@ -64,39 +75,39 @@ jobs:
         steps:
             - checkout
             - run:
-                  name: Ensure Frontend & Backend infrastructure exist
-                  command: |
-                      aws cloudformation create-stack \
-                          --template-body file://.circleci/files/backend.yml \
-                          --stack-name udapeople-backend-stack \
-                          --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
-                      aws cloudformation create-stack \
-                          --template-body file://.circleci/files/frontend.yml \
-                          --stack-name udapeople-frontend-stack \
-                          --parameters ParameterKey=ID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
-            - run:
                   name: Ensure Cloudfront and Network infrastructure exist
                   command: |
-                      aws cloudformation create-stack \
-                          --template-body file://.circleci/files/cloudfront.yml \
-                          --stack-name udapeople-cloudfront-stack \
-                          --parameters ParameterKey=WorkflowID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7}
-                      aws cloudformation create-stack \
-                          --template-body file://.circleci/files/network.yml \
-                          --stack-name udapeople-network-stack \
-                          --parameters ParameterKey=EnvironmentName,ParameterValue=${UdaPeople-Env}
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/cloudfront.yml \
+                            --stack-name udapeople-cloudfront-stack \
+                            --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/network.yml \
+                            --stack-name udapeople-network-stack \
+                            --parameter-overrides EnvironmentName=${UdaPeople-Env}
             - run:
-                name: Rollback Frontend & Backend infrastructure
-                when: on_fail
-                command: |
-                      aws cloudformation delete-stack --stack-name udapeople-backend-stack
-                      aws cloudformation delete-stack --stack-name udapeople-frontend-stack  
+                  name: Ensure Frontend & Backend infrastructure exist
+                  command: |
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/backend.yml \
+                            --stack-name udapeople-backend-stack \
+                            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/frontend.yml \
+                            --stack-name udapeople-frontend-stack \
+                            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
             - run:
                 name: Rollback Cloudfront and Network infrastructure
                 when: on_fail
                 command: |       
                       aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
                       aws cloudformation delete-stack --stack-name udapeople-network-stack
+            - run:
+                name: Rollback Frontend & Backend infrastructure
+                when: on_fail
+                command: |
+                      aws cloudformation delete-stack --stack-name udapeople-backend-stack
+                      aws cloudformation delete-stack --stack-name udapeople-frontend-stack  
 
     # Analyzing Code
     analyzing-backend:
@@ -167,18 +178,18 @@ workflows:
             #         - building-backend
 
             # Running Infrastructure Jobs
-            - creating-infrastructure
-
-            # Running Configuration Jobs
-            - creating-inventory:
-                requires:
-                      - creating-infrastructure
-            - extracting-inventory:
-                    requires:
-                        - creating-inventory
+            # - creating-infrastructure
+            #    requires:
+            #          - building-frontend
+            - creating-inventory
+            #    requires:
+            #          - creating-infrastructure
+            # - extracting-inventory:
+            #         requires:
+            #             - creating-inventory
             - configuring-infrastructure:
                   requires:
-                      - extracting-inventory
+                      - creating-inventory
                             
 
 
