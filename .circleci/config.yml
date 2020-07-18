@@ -19,8 +19,27 @@ jobs:
                   command: | 
                       cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
 
+    # Extracting IP
+    extracting-inventory:
+        working_directory: .circleci/ansible/
+        docker:
+            - image: circleci/node:8.2.1
+        steps:
+            - checkout
+            - run:
+                name: Extracting the backend IP Address from Memstash so that Frontend can use it
+                command: |
+                    ip=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)
+                    echo "[web]" > inventory
+                    echo $ip >> inventory
+            - persist_to_workspace:
+                root: .circleci/ansible/
+                paths:
+                    - inventory
+    
     # Creating Inventory with new EC2's IP address
     creating-inventory:
+        working_directory: .circleci/ansible/
         docker:
             - image: amazon/aws-cli
         steps:
@@ -32,9 +51,10 @@ jobs:
                     --query 'Reservations[*].Instances[*].PublicIpAddress' \
                     --output text >> inventory
             - run:
-                name: Storing the Backend IP Address to Memstash as frontend needs it 
+                name: Storing the Backend IP Address to Memstash as Frontend needs it 
                 command: |
                     ip_address=$(tail -n 1 inventory)
+                    echo $ip_address
                     curl -H "Content-Type: text/plain" -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request PUT --data $ip_address https://api.memstash.io/values/backend
 
     # Creating Infrastructure
@@ -153,7 +173,12 @@ workflows:
             - creating-inventory:
                 requires:
                       - creating-infrastructure
+            - extracting-inventory:
+                    requires:
+                        - creating-inventory
             - configuring-infrastructure:
                   requires:
-                      - creating-inventory
+                      - extracting-inventory
+                            
+
 
