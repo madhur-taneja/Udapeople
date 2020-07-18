@@ -2,6 +2,41 @@ version: 2.1
 orbs:
     node: circleci/node@1.1.6
 jobs:
+    # Configuring Infrastructure
+    configuring-infrastructure:
+        docker:
+            - image: python:3.7-alpine3.11
+        steps:
+            - checkout
+            - add_ssh_keys:
+                  fingerprints: ["25:f3:77:b4:e3:a0:93:17:29:ed:8c:56:b9:c8:2d:a8"] # You can get this ID in the section where you registered the SSH Key
+            - run:
+                  name: Install dependencies
+                  command: |
+                      apk add --update ansible # install the dependencies needed for your playbook
+            - run:
+                  name: configuring server
+                  command: | 
+                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
+
+    # Creating Inventory with new EC2's IP address
+    creating-inventory:
+        docker:
+            - image: amazon/aws-cli
+        steps:
+            - checkout
+            - run:
+                name: Get the IP Address of the EC2 instance 
+                command: |
+                    aws ec2 describe-instances \
+                    --query 'Reservations[*].Instances[*].PublicIpAddress' \
+                    --output text >> inventory
+            - run:
+                name: Storing the Backend IP Address to Memstash as frontend needs it 
+                command: |
+                    ip_address=$(tail -n 1 inventory)
+                    curl -H "Content-Type: text/plain" -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request PUT --data $ip_address https://api.memstash.io/values/backend
+
     # Creating Infrastructure
     creating-infrastructure:
         docker:
@@ -30,23 +65,6 @@ jobs:
                           --template-body file://.circleci/files/network.yml \
                           --stack-name udapeople-network-stack \
                           --parameters ParameterKey=EnvironmentName,ParameterValue=${UdaPeople-Env}
-
-    # Configure Infrastructure
-    configure-infrastructure:
-        docker:
-            - image: python:3.7-alpine3.11
-        steps:
-            - checkout
-            - add_ssh_keys:
-                  fingerprints: ["25:f3:77:b4:e3:a0:93:17:29:ed:8c:56:b9:c8:2d:a8"] # You can get this ID in the section where you registered the SSH Key
-            - run:
-                  name: Install dependencies
-                  command: |
-                      apk add --update ansible # install the dependencies needed for your playbook
-            - run:
-                  name: Configure server
-                  command: | 
-                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
 
     # Analyzing Code
     analyzing-backend:
@@ -118,6 +136,12 @@ workflows:
 
             # Running Infrastructure Jobs
             - creating-infrastructure
-            #- configure-infrastructure
-            #      requires:
-            #          - creating-infrastructure
+
+            # Running Configuration Jobs
+            - creating-inventory:
+                requires:
+                      - creating-infrastructure
+            - configuring-infrastructure:
+                  requires:
+                      - creating-inventory
+
