@@ -23,20 +23,6 @@ jobs:
                       pwd
                       cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
 
-    # Extracting IP
-    extracting-inventory:
-        working_directory: ~/project
-        docker:
-            - image: circleci/node:8.2.1
-        steps:
-            - checkout
-            # - run:
-            #     name: Extracting the backend IP Address from Memstash so that Frontend can use it
-            #     command: |
-            #         ip=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)
-            #         echo "[web]" > ./.circleci/ansible/inventory
-            #         echo $ip >> ./.circleci/ansible/inventory
-    
     # Creating Inventory with new EC2's IP address
     creating-inventory:
         docker:
@@ -184,9 +170,6 @@ workflows:
             - creating-inventory
             #    requires:
             #          - creating-infrastructure
-            # - extracting-inventory:
-            #         requires:
-            #             - creating-inventory
             - configuring-infrastructure:
                   requires:
                       - creating-inventory

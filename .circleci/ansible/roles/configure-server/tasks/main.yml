@@ -23,10 +23,3 @@
         global: yes
         production: yes
         state: present
-
--   name: "install git"
-    become: true
-    apt:
-        name: git
-        state: latest
-        update_cache: yes
