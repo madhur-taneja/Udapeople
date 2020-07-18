@@ -21,7 +21,8 @@ jobs:
                   command: |
                       cat ./.circleci/ansible/inventory 
                       pwd
-                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml -c paramiko -u deploy
+                      cd .circleci/ansible
+                      ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml
 
     # Creating Inventory with new EC2's IP address
     creating-inventory:
@@ -164,7 +165,7 @@ workflows:
             #         - building-backend
 
             # Running Infrastructure Jobs
-            # - creating-infrastructure
+            #- creating-infrastructure
             #    requires:
             #          - building-frontend
             - creating-inventory

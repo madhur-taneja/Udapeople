@@ -1,12 +1,6 @@
 ---
-        
--   name: "install dist from production build"
+-   name: "Copying Backend Codebase"
+    become: true
     copy:
-        src: /root/project/backend/dist/
+        src: /root/project/backend
         dest: /home/ubuntu
-        backup: yes
-        
--   name: Executing node
-    shell: |
-        npm install
-        pm2 start dist/main.js
