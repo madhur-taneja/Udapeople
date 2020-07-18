@@ -44,7 +44,7 @@ jobs:
         steps:
             - checkout
             - run:
-                  name: Ensure frontend & backend infrastructure exist
+                  name: Ensure Frontend & Backend infrastructure exist
                   command: |
                       aws cloudformation create-stack \
                           --template-body file://.circleci/files/backend.yml \
@@ -65,6 +65,18 @@ jobs:
                           --template-body file://.circleci/files/network.yml \
                           --stack-name udapeople-network-stack \
                           --parameters ParameterKey=EnvironmentName,ParameterValue=${UdaPeople-Env}
+            - run:
+                name: Rollback Frontend & Backend infrastructure
+                when: on_fail
+                command: |
+                      aws cloudformation delete-stack --stack-name udapeople-backend-stack
+                      aws cloudformation delete-stack --stack-name udapeople-frontend-stack  
+            - run:
+                name: Rollback Cloudfront and Network infrastructure
+                when: on_fail
+                command: |       
+                      aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
+                      aws cloudformation delete-stack --stack-name udapeople-network-stack
 
     # Analyzing Code
     analyzing-backend:
