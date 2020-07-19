@@ -19,10 +19,9 @@ jobs:
             - run:
                   name: configuring server
                   command: |
-                      cat ./.circleci/ansible/inventory 
+                      cat ./.circleci/ansible/inventory
                       pwd
-                      cd .circleci/ansible
-                      ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml
+                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml
 
     # Creating Inventory with new EC2's IP address
     creating-inventory:
