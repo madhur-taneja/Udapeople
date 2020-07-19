@@ -9,7 +9,7 @@ jobs:
         steps:
             - checkout
             - add_ssh_keys:
-                  fingerprints: ["1a:be:ed:32:e4:98:3e:e4:d7:85:82:e5:bf:5e:b9:8b"] # You can get this ID in the section where you registered the SSH Key
+                  fingerprints: ["25:f3:77:b4:e3:a0:93:17:29:ed:8c:56:b9:c8:2d:a8"] # You can get this ID in the section where you registered the SSH Key
             - run:
                   name: Install dependencies
                   command: |
@@ -60,17 +60,17 @@ jobs:
             - image: amazon/aws-cli
         steps:
             - checkout
-            # - run:
-            #       name: Ensure Cloudfront and Network infrastructure exist
-            #       command: |
-            #             aws cloudformation deploy \
-            #                 --template-file ./.circleci/files/cloudfront.yml \
-            #                 --stack-name udapeople-cloudfront-stack \
-            #                 --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
-            #             aws cloudformation deploy \
-            #                 --template-file ./.circleci/files/network.yml \
-            #                 --stack-name udapeople-network-stack \
-            #                 --parameter-overrides EnvironmentName=${UdaPeople-Env}
+            - run:
+                  name: Ensure Cloudfront and Network infrastructure exist
+                  command: |
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/cloudfront.yml \
+                            --stack-name udapeople-cloudfront-stack \
+                            --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
+                        aws cloudformation deploy \
+                            --template-file ./.circleci/files/network.yml \
+                            --stack-name udapeople-network-stack \
+                            --parameter-overrides EnvironmentName=${UdaPeople-Env}
             - run:
                   name: Ensure Frontend & Backend infrastructure exist
                   command: |
@@ -82,12 +82,12 @@ jobs:
                             --template-file ./.circleci/files/frontend.yml \
                             --stack-name udapeople-frontend-stack \
                             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            # - run:
-            #     name: Rollback Cloudfront and Network infrastructure
-            #     when: on_fail
-            #     command: |       
-            #           aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
-            #           aws cloudformation delete-stack --stack-name udapeople-network-stack
+            - run:
+                name: Rollback Cloudfront and Network infrastructure
+                when: on_fail
+                command: |       
+                      aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
+                      aws cloudformation delete-stack --stack-name udapeople-network-stack
             - run:
                 name: Rollback Frontend & Backend infrastructure
                 when: on_fail
