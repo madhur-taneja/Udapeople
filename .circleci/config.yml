@@ -8,6 +8,11 @@ jobs:
             - image: amazon/aws-cli
         steps:
             - checkout
+            - run:
+                name: Install tar/gzip utility
+                command: |
+                    yum -y install tar
+                    yum -y install gzip
             - attach_workspace:
                 at: ~/project
             - run:
@@ -191,15 +196,16 @@ workflows:
                 #     - building-backend
 
             # Running Infrastructure Jobs
-            - creating-infrastructure:
-                requires:
-                    - building-frontend
-            - creating-inventory:
-                requires:
-                    - creating-infrastructure
-            - configuring-backend-infrastructure:
-                requires:
-                    - creating-inventory
+            # - creating-infrastructure:
+            #     requires:
+            #         - building-frontend
+            # - creating-inventory:
+            #     requires:
+            #         - creating-infrastructure
+            # - configuring-backend-infrastructure:
+            #     requires:
+            #         - creating-inventory
             - configuring-frontend-infrastructure:
                 requires:
-                    - configuring-backend-infrastructure
+                    # - configuring-backend-infrastructure
+                    - building-frontend
