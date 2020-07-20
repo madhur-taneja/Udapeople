@@ -5,26 +5,30 @@ jobs:
     # Configuring Frontend Infrastructure
     configuring-frontend-infrastructure:
         docker:
-            - image: amazon/aws-cli
+            - image: circleci/node:13.8.0
         steps:
             - checkout
             - run:
                 name: Install tar/gzip utility
                 command: |
-                    yum -y install tar
-                    yum -y install gzip
-            - attach_workspace:
-                at: ~/project
+                    yum -y install tar gzip
             - run:
-                name: "Building API_URL"
+                name: "Baking backend API_URL into the front-end"
                 command: | 
                     API_HOST=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)     
                     export API_URL=http://$API_HOST:3030
-                    echo $API_URL
+                    echo $API_URL >> frontend/.env
+                    cd frontend && npm run build
+            - run:
+                name: "Installing AWS-CLI"
+                command: |
+                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip awscliv2.zip
+                    sudo ./aws/install
             - run:
                 name: "Copying compiled files to the S3 Bucket"
                 command: |
-                    aws s3 cp ./frontend/dist 's3://'udapeople-'${CIRCLE_WORKFLOW_ID:0:7}'/' --recursive
+                    aws s3 cp ./frontend/dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
 
     # Configuring Backend Infrastructure
     configuring-backend-infrastructure:
@@ -33,19 +37,19 @@ jobs:
         steps:
             - checkout
             - add_ssh_keys:
-                  fingerprints: ["4d:91:21:13:be:f2:fb:51:78:7d:ff:8f:01:18:6c:21"] # You can get this ID in the section where you registered the SSH Key
+                fingerprints: ["4d:91:21:13:be:f2:fb:51:78:7d:ff:8f:01:18:6c:21"] # You can get this ID in the section where you registered the SSH Key
             - run:
-                  name: Install dependencies
-                  command: |
-                      apk add --update ansible # install the dependencies needed for your playbook
+                name: Install dependencies
+                command: |
+                    apk add --update ansible # install the dependencies needed for your playbook
             - attach_workspace:
-                  at: ~/project
+                at: ~/project
             - run:
-                  name: "Configuring server"
-                  command: |
-                      cat ./.circleci/ansible/inventory
-                      pwd
-                      cd .circleci/ansible && ansible-playbook -i inventory playbook.yml
+                name: "Configuring server"
+                command: |
+                    cat ./.circleci/ansible/inventory
+                    pwd
+                    cd .circleci/ansible && ansible-playbook -i inventory playbook.yml
 
     # Creating Inventory with new EC2's IP address
     creating-inventory:
@@ -71,8 +75,7 @@ jobs:
             - run:
                 name: Install tar/gzip utility
                 command: |
-                    yum -y install tar
-                    yum -y install gzip
+                    yum -y install tar gzip
             - persist_to_workspace:
                 root: ~/project
                 paths:
@@ -84,26 +87,26 @@ jobs:
             - image: amazon/aws-cli
         steps:
             - checkout
+            # - run:
+            #     name: Ensure Network & Cloudfront infrastructure exist
+            #     command: |
+            #             aws cloudformation deploy \
+            #                 --template-file ./.circleci/files/network.yml \
+            #                 --stack-name udapeople-network-stack \
+            #                 --parameter-overrides EnvironmentName=${UdaPeople-Env}
+            #             aws cloudformation deploy \
+            #                 --template-file ./.circleci/files/cloudfront.yml \
+            #                 --stack-name udapeople-cloudfront-stack \
+            #                 --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
+            # - run:
+            #     name: Rollback Cloudfront and Network infrastructure
+            #     when: on_fail
+            #     command: |      
+            #             aws cloudformation delete-stack --stack-name udapeople-network-stack 
+            #             aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
             - run:
-                  name: Ensure Cloudfront and Network infrastructure exist
-                  command: |
-                        aws cloudformation deploy \
-                            --template-file ./.circleci/files/cloudfront.yml \
-                            --stack-name udapeople-cloudfront-stack \
-                            --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
-                        aws cloudformation deploy \
-                            --template-file ./.circleci/files/network.yml \
-                            --stack-name udapeople-network-stack \
-                            --parameter-overrides EnvironmentName=${UdaPeople-Env}
-            - run:
-                name: Rollback Cloudfront and Network infrastructure
-                when: on_fail
-                command: |       
-                      aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
-                      aws cloudformation delete-stack --stack-name udapeople-network-stack
-            - run:
-                  name: Ensure Frontend & Backend infrastructure exist
-                  command: |
+                name: Ensure Backend & Frontend infrastructure exist
+                command: |
                         aws cloudformation deploy \
                             --template-file ./.circleci/files/backend.yml \
                             --stack-name udapeople-backend-stack \
@@ -116,8 +119,8 @@ jobs:
                 name: Rollback Frontend & Backend infrastructure
                 when: on_fail
                 command: |
-                      aws cloudformation delete-stack --stack-name udapeople-backend-stack
-                      aws cloudformation delete-stack --stack-name udapeople-frontend-stack  
+                        aws cloudformation delete-stack --stack-name udapeople-backend-stack
+                        aws cloudformation delete-stack --stack-name udapeople-frontend-stack 
 
     # Analyzing Code
     analyzing-backend:
@@ -190,22 +193,21 @@ workflows:
             # - building-backend:
             #     requires:
             #         - testing-backend
-            - building-frontend
+            # - building-frontend:
                 # requires:
                 #     - testing-frontend
                 #     - building-backend
 
             # Running Infrastructure Jobs
-            # - creating-infrastructure:
+            - creating-infrastructure
             #     requires:
             #         - building-frontend
-            # - creating-inventory:
-            #     requires:
-            #         - creating-infrastructure
-            # - configuring-backend-infrastructure:
-            #     requires:
-            #         - creating-inventory
+            - creating-inventory:
+                requires:
+                    - creating-infrastructure
+            - configuring-backend-infrastructure:
+                requires:
+                    - creating-inventory
             - configuring-frontend-infrastructure:
                 requires:
-                    # - configuring-backend-infrastructure
-                    - building-frontend
+                    - configuring-backend-infrastructure
