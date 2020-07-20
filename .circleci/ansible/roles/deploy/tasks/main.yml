@@ -13,22 +13,26 @@
         pm2 delete backend
 
 -   name: "Installing Backend"
+    become: true
     shell: |
         cd /home/ubuntu/backend    
         npm install
 
 -   name: "Building Backend service"
+    become: true
     shell: |
         cd /home/ubuntu/backend
         npm run build
 
 -   name: "Running DB migrations and saving to MemStash.io"
+    become: true
     shell: |
         cd /home/ubuntu/backend
         npm run migrations > migrations.txt
         curl -H "Content-Type: text/plain" -H "token: 2998145a-3ac8-4ec1-b0e5-2fdd9f3bcde6" --request PUT --data $(grep -c "Migrations are not pending" migrations.txt) https://api.memstash.io/values/migrations
 
 -   name: "Running Backend service"
+    become: true
     shell: |
         cd /home/ubuntu/backend    
         pm2 start npm --no-automation --name "backend" -- run start
