@@ -12,17 +12,11 @@
         pm2 stop backend
         pm2 delete backend
 
--   name: "Installing Backend"
+-   name: "Installing and Building Backend"
     become: true
     shell: |
         cd /home/ubuntu/backend    
-        npm install
-
--   name: "Building Backend service"
-    become: true
-    shell: |
-        cd /home/ubuntu/backend
-        npm run build
+        npm i && npm run build  
 
 -   name: "Running DB migrations and saving to MemStash.io"
     become: true
