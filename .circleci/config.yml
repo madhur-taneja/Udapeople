@@ -72,6 +72,12 @@ jobs:
                             --stack-name udapeople-network-stack \
                             --parameter-overrides EnvironmentName=${UdaPeople-Env}
             - run:
+                name: Rollback Cloudfront and Network infrastructure
+                when: on_fail
+                command: |       
+                      aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
+                      aws cloudformation delete-stack --stack-name udapeople-network-stack
+            - run:
                   name: Ensure Frontend & Backend infrastructure exist
                   command: |
                         aws cloudformation deploy \
@@ -82,12 +88,6 @@ jobs:
                             --template-file ./.circleci/files/frontend.yml \
                             --stack-name udapeople-frontend-stack \
                             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            - run:
-                name: Rollback Cloudfront and Network infrastructure
-                when: on_fail
-                command: |       
-                      aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
-                      aws cloudformation delete-stack --stack-name udapeople-network-stack
             - run:
                 name: Rollback Frontend & Backend infrastructure
                 when: on_fail
@@ -164,12 +164,12 @@ workflows:
             #         - building-backend
 
             # Running Infrastructure Jobs
-            - creating-infrastructure
+            # - creating-infrastructure
             #    requires:
             #          - building-frontend
-            - creating-inventory:
-               requires:
-                     - creating-infrastructure
+            - creating-inventory
+            #    requires:
+                    #  - creating-infrastructure
             - configuring-infrastructure:
                   requires:
                       - creating-inventory
