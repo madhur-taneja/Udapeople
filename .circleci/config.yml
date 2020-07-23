@@ -28,7 +28,7 @@ commands:
             name: "Database Rollback to previous migration"
             command: |
                 cd backend && npm i
-                if (( $( curl -H "token: 2998145a-3ac8-4ec1-b0e5-2fdd9f3bcde6" --request GET https://api.memstash.io/values/migrations ) == 0 ))
+                if (( $( curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/migrations ) == 0 ))
                 then 
                 npm run migrations:revert
                 echo "Reverting migrations"
@@ -51,7 +51,7 @@ jobs:
             - run:
                 name: "Backend Smoke Test"
                 command: |
-                    API_HOST=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)     
+                    API_HOST=$(curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/backend)     
                     export API_URL=http://$API_HOST:3030
                     if curl "http://${BACKEND_IP}:3030/api/status" | grep "statusCode"
                     then
@@ -81,7 +81,7 @@ jobs:
             - run:
                 name: "Baking backend API_URL into the front-end"
                 command: | 
-                    API_HOST=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)     
+                    API_HOST=$(curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/backend)     
                     export API_URL=http://$API_HOST:3030
                     echo $API_URL >> frontend/.env
                     cd frontend && npm run build
@@ -141,7 +141,7 @@ jobs:
                 command: |
                     ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
                     echo $ip_address
-                    curl -H "Content-Type: text/plain" -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request PUT --data $ip_address https://api.memstash.io/values/backend
+                    curl -H "Content-Type: text/plain" -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request PUT --data $ip_address https://api.memstash.io/values/backend
             - run:
                 name: Install tar/gzip utility
                 command: |
@@ -259,12 +259,12 @@ workflows:
                 #     - building-backend
 
             # Running Infrastructure Jobs
-            - creating-infrastructure
+            # - creating-infrastructure
             #     requires:
             #         - building-frontend
-            - creating-inventory:
-                requires:
-                    - creating-infrastructure
+            - creating-inventory
+                # requires:
+                    # - creating-infrastructure
             - configuring-backend-infrastructure:
                 requires:
                     - creating-inventory
