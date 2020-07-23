@@ -23,6 +23,7 @@
     shell: |
         cd /home/ubuntu/backend
         npm run migrations > migrations.txt
+        cat migrations.txt
         curl -H "Content-Type: text/plain" -H "token: 2998145a-3ac8-4ec1-b0e5-2fdd9f3bcde6" --request PUT --data $(grep -c "Migrations are not pending" migrations.txt) https://api.memstash.io/values/migrations
 
 -   name: "Running Backend service"
