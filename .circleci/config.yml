@@ -84,7 +84,7 @@ jobs:
                     API_HOST=$(curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/backend)     
                     export API_URL=http://$API_HOST:3030
                     echo $API_URL >> frontend/.env
-                    cd frontend && npm run build
+                    cd frontend && npm i && npm run build
             - run:
                 name: "Installing AWS-CLI"
                 command: |
@@ -108,10 +108,6 @@ jobs:
                 name: Install dependencies
                 command: |
                     apk add --update ansible # install the dependencies needed for your playbook
-            - run:
-                name: Install tar/gzip utility
-                command: |
-                    yum -y install tar gzip
             - attach_workspace:
                 at: ~/project
             - run:
@@ -264,7 +260,7 @@ workflows:
             #         - building-frontend
             - creating-inventory
                 # requires:
-                    # - creating-infrastructure
+                #     - creating-infrastructure
             - configuring-backend-infrastructure:
                 requires:
                     - creating-inventory
