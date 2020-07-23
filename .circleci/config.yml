@@ -53,7 +53,7 @@ jobs:
                 command: |
                     API_HOST=$(curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/backend)     
                     export API_URL=http://$API_HOST:3030
-                    if curl "http://${BACKEND_IP}:3030/api/status" | grep "statusCode"
+                    if curl "http://${API_URL}:3030/api/status" | grep "statusCode"
                     then
                     return 1
                     else
@@ -62,7 +62,7 @@ jobs:
             - run:
                 name: "Frontend Smoke Test"
                 command: |
-                    URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"            
+                    URL="http://udapeople-f237b39.s3-website-us-east-1.amazonaws.com/#/employees"            
                     if curl -s ${URL} | grep "Welcome"
                     then
                     return 1
@@ -94,7 +94,7 @@ jobs:
             - run:
                 name: "Copying compiled files to the S3 Bucket"
                 command: |
-                    aws s3 cp ./frontend/dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
+                    aws s3 cp ./frontend/dist s3://udapeople-f237b39 --recursive
 
     # Configuring Backend Infrastructure
     configuring-backend-infrastructure:
@@ -267,3 +267,6 @@ workflows:
             - configuring-frontend-infrastructure:
                 requires:
                     - configuring-backend-infrastructure
+            - smoke-test:
+                requires:
+                    - configuring-frontend-infrastructure
