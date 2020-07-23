@@ -1,17 +1,83 @@
 version: 2.1
 orbs:
     node: circleci/node@1.1.6
+
+# Common commands among jobs 
+commands:
+    # Destroying Infrastructure
+    rollback-infrastructure:
+        steps:
+        # - run:
+        #     when: on_fail
+        #     name: "Destroying Cloudfront and Network infrastructure"
+        #     command: |
+        #         aws cloudformation delete-stack --stack-name network-stack
+        #         aws cloudformation delete-stack --stack-name cloudfront-stack
+        - run:
+            when: on_fail
+            name: "Destroying Frontend & Backend infrastructure"
+            command: |
+                aws cloudformation delete-stack --stack-name backend-stack
+                aws cloudformation delete-stack --stack-name frontend-stack
+
+    # Reverting Database Migration
+    rollback-database:
+        steps:
+        - run:
+            when: on_fail
+            name: "Database Rollback to previous migration"
+            command: |
+                cd backend && npm i
+                if (( $( curl -H "token: 2998145a-3ac8-4ec1-b0e5-2fdd9f3bcde6" --request GET https://api.memstash.io/values/migrations ) == 0 ))
+                then 
+                npm run migrations:revert
+                echo "Reverting migrations"
+                else
+                echo "Migrations not reverted"
+                fi
+        - run:
+            when: on_fail
+            name: "Halting the workflow"
+            command: |
+                circleci-agent step halt
+
 jobs:
+    # Smoke Testing Services
+    smoke-test:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run:
+                name: "Backend Smoke Test"
+                command: |
+                    API_HOST=$(curl -H "token: c20424ec-3f12-4c18-87f3-4ce676c7e8ae" --request GET https://api.memstash.io/values/backend)     
+                    export API_URL=http://$API_HOST:3030
+                    if curl "http://${BACKEND_IP}:3030/api/status" | grep "statusCode"
+                    then
+                    return 1
+                    else
+                    return 0
+                    fi
+            - run:
+                name: "Frontend Smoke Test"
+                command: |
+                    URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"            
+                    if curl -s ${URL} | grep "Welcome"
+                    then
+                    return 1
+                    else
+                    return 0
+                    fi
+            - rollback-infrastructure
+            - rollback-database
+
     # Configuring Frontend Infrastructure
     configuring-frontend-infrastructure:
         docker:
             - image: circleci/node:13.8.0
         steps:
             - checkout
-            - run:
-                name: Install tar/gzip utility
-                command: |
-                    yum -y install tar gzip
             - run:
                 name: "Baking backend API_URL into the front-end"
                 command: | 
@@ -42,6 +108,10 @@ jobs:
                 name: Install dependencies
                 command: |
                     apk add --update ansible # install the dependencies needed for your playbook
+            - run:
+                name: Install tar/gzip utility
+                command: |
+                    yum -y install tar gzip
             - attach_workspace:
                 at: ~/project
             - run:
@@ -98,12 +168,6 @@ jobs:
             #                 --template-file ./.circleci/files/cloudfront.yml \
             #                 --stack-name udapeople-cloudfront-stack \
             #                 --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
-            # - run:
-            #     name: Rollback Cloudfront and Network infrastructure
-            #     when: on_fail
-            #     command: |      
-            #             aws cloudformation delete-stack --stack-name udapeople-network-stack 
-            #             aws cloudformation delete-stack --stack-name udapeople-cloudfront-stack
             - run:
                 name: Ensure Backend & Frontend infrastructure exist
                 command: |
@@ -115,12 +179,8 @@ jobs:
                             --template-file ./.circleci/files/frontend.yml \
                             --stack-name udapeople-frontend-stack \
                             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            - run:
-                name: Rollback Frontend & Backend infrastructure
-                when: on_fail
-                command: |
-                        aws cloudformation delete-stack --stack-name udapeople-backend-stack
-                        aws cloudformation delete-stack --stack-name udapeople-frontend-stack 
+            - rollback-infrastructure
+            
 
     # Analyzing Code
     analyzing-backend:
