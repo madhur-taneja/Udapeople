@@ -212,6 +212,48 @@ jobs:
                     - ./.circleci/ansible/inventory
             - rollback-infrastructure
 
+    # Configuring Backend Infrastructure
+    configuring-backend-infrastructure:
+        docker:
+            - image: python:3.7-alpine3.11
+        steps:
+            - checkout
+            - add_ssh_keys:
+                fingerprints: ["4d:91:21:13:be:f2:fb:51:78:7d:ff:8f:01:18:6c:21"] # You can get this ID in the section where you registered the SSH Key
+            - attach_workspace:
+                at: ~/project
+            - run:
+                name: "Adding .env file for Backend"
+                command: |
+                    echo -e "NODE_ENV=production\n
+                        VERSION=1\n
+                        TYPEORM_CONNECTION=${TYPEORM_CONNECTION}\n
+                        TYPEORM_MIGRATIONS_DIR=${TYPEORM_MIGRATIONS_DIR}\n
+                        TYPEORM_ENTITIES=${TYPEORM_ENTITIES}\n
+                        TYPEORM_MIGRATIONS=${TYPEORM_MIGRATIONS}\n
+                        TYPEORM_HOST=${TYPEORM_HOST}\n
+                        TYPEORM_PORT=${TYPEORM_PORT}\n
+                        TYPEORM_USERNAME=${TYPEORM_USERNAME}\n
+                        TYPEORM_PASSWORD=${TYPEORM_PASSWORD}\n
+                        TYPEORM_DATABASE=${TYPEORM_DATABASE}\n
+                        ENVIRONMENT=production" > ./backend/.env
+                    cat ./backend/.env
+            - persist_to_workspace:
+                root: ~/project
+                paths:
+                    - ./backend/.env
+            - run:
+                name: "Installing dependencies"
+                command: |
+                    apk add --update ansible && pip install awscli # install the dependencies needed for your playbook            
+            - run:
+                name: "Configuring server"
+                command: |
+                    cat ./.circleci/ansible/inventory
+                    pwd
+                    cd .circleci/ansible && ansible-playbook -i inventory playbook-configure.yml
+            - rollback-infrastructure
+
     # Smoke Testing Services
     smoke-test:
         docker:
@@ -265,27 +307,6 @@ jobs:
                 name: "Copying compiled files to the S3 Bucket"
                 command: |
                     aws s3 cp ./frontend/dist s3://udapeople-f237b39 --recursive
-
-    # Configuring Backend Infrastructure
-    configuring-backend-infrastructure:
-        docker:
-            - image: python:3.7-alpine3.11
-        steps:
-            - checkout
-            - add_ssh_keys:
-                fingerprints: ["4d:91:21:13:be:f2:fb:51:78:7d:ff:8f:01:18:6c:21"] # You can get this ID in the section where you registered the SSH Key
-            - run:
-                name: Install dependencies
-                command: |
-                    apk add --update ansible # install the dependencies needed for your playbook
-            - attach_workspace:
-                at: ~/project
-            - run:
-                name: "Configuring server"
-                command: |
-                    cat ./.circleci/ansible/inventory
-                    pwd
-                    cd .circleci/ansible && ansible-playbook -i inventory playbook.yml
 
 workflows:
     analyzing-testing-building-deploying:
