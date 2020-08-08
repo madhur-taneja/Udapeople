@@ -365,6 +365,21 @@ jobs:
             - rollback-infrastructure
             - rollback-database
 
+    # Promoting Infrastructure to Production Phase
+    promoting-to-production:
+        docker:
+            - image: amazon/aws-cli
+        steps:
+            - checkout
+            - run:
+                name: "Creating Cloudfront Infrastructure with S3 Bucket ARN"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/cloudfront.yml \
+                        --stack-name udapeople-cloudfront-stack \
+                        --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
+            - rollback-infrastructure
+
 workflows:
     analyzing-testing-building-deploying:
         jobs:
