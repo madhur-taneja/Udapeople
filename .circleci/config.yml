@@ -7,18 +7,17 @@ commands:
     # Destroying Infrastructure
     rollback-infrastructure:
         steps:
-        # - run:
-        #     when: on_fail
-        #     name: "Destroying Cloudfront and Network infrastructure"
-        #     command: |
-        #         aws cloudformation delete-stack --stack-name network-stack
-        #         aws cloudformation delete-stack --stack-name cloudfront-stack
         - run:
             when: on_fail
-            name: "Destroying Frontend & Backend infrastructure"
+            name: "Destroying Backend Infrastructure"
             command: |
-                aws cloudformation delete-stack --stack-name backend-stack
-                aws cloudformation delete-stack --stack-name frontend-stack
+                aws cloudformation delete-stack --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7}
+        - run:
+            when: on_fail
+            name: "Destroying Frontend Infrastructure"
+            command: |
+                aws s3 rb s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --force || true
+                aws cloudformation delete-stack --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7}
 
     # Reverting Database Migration
     rollback-database:
@@ -30,10 +29,10 @@ commands:
                 cd backend && npm i
                 if (( $( curl -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request GET https://api.memstash.io/values/migrations ) == 0 ))
                 then 
-                npm run migrations:revert
-                echo "Reverting migrations"
+                    npm run migrations:revert
+                    echo "Reverting migrations"
                 else
-                echo "Migrations not reverted"
+                    echo "Migrations not reverted"
                 fi
         - run:
             when: on_fail
