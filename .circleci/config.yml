@@ -380,6 +380,24 @@ jobs:
                         --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-infrastructure
 
+    # Cleaning up Old Infrastructure 
+    cleaning-up:
+        docker:
+            - image: amazon/aws-cli
+        steps:
+            - run:
+                name: "Deleting Old Stacks and Saving Current Stack's WorkflowID"
+                command: |
+                    OLD_WorkflowID=$(curl -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request GET "https://api.memstash.io/values/Old_WorkflowID")
+                    if [ $(echo $OLD_WorkflowID | grep -c "No value matches the provided token and key") == 0 ]
+                    then
+                        aws cloudformation delete-stack --stack-name udapeople-backend-stack-${OLD_WorkflowID}
+                        aws s3 rm s3://udapeople-${OLD_WorkflowID} --recursive
+                        aws cloudformation delete-stack --stack-name udapeople-frontend-stack-${OLD_WorkflowID}
+                    fi
+                    curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data "${CIRCLE_WORKFLOW_ID:0:7}" https://api.memstash.io/values/Old_WorkflowID
+            - rollback-infrastructure
+
 workflows:
     analyzing-testing-building-deploying:
         jobs:
