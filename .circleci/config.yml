@@ -125,7 +125,31 @@ jobs:
                   path: ./frontend/junit
                   destination: junit
             - store_test_results:
-                  path: ./frontend/junit    
+                  path: ./frontend/junit
+
+    # Analyzing Code
+    analyzing-backend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run: 
+                name: "Running audit for Backend"
+                command: |
+                    cd backend
+                    sudo npm i
+                    sudo npm audit fix --audit-level=critical --force
+    analyzing-frontend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run: 
+                name: "Running audit for Frontend"
+                command: |
+                    cd frontend
+                    sudo npm i
+                    sudo npm audit fix --audit-level=critical --force
 
     # Smoke Testing Services
     smoke-test:
@@ -261,21 +285,6 @@ jobs:
                             --stack-name udapeople-frontend-stack \
                             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-infrastructure
-            
-
-    # Analyzing Code
-    analyzing-backend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd backend && npm i && npm audit fix --audit-level=critical --force
-    analyzing-frontend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd frontend && npm i && npm audit fix --audit-level=critical --force
 
 workflows:
     analyzing-testing-building-deploying:
