@@ -399,42 +399,68 @@ jobs:
             - rollback-infrastructure
 
 workflows:
-    analyzing-testing-building-deploying:
+    building-testing-analyzing-creating-configuring-deploying:
         jobs:
-            # Running Analysis Jobs
-            # - analyzing-backend
-            # - analyzing-frontend
+            # Build Phase
+            - building-backend
+            - building-frontend
 
-            # Running Test Jobs
-            # - testing-frontend:
-            #     requires:
-            #         - analyzing-frontend
-            # - testing-backend:
-            #     requires:
-            #         - analyzing-backend
+            # Test Phase
+            - testing-backend:
+                requires:
+                    - building-backend
+            - testing-frontend:
+                requires:
+                    - building-frontend
+            
+            # Analyse Phase
+            - analyzing-backend:
+                requires:
+                    - testing-backend
+            - analyzing-frontend:
+                requires:
+                    - testing-frontend
 
-            # Running Build Jobs
-            # - building-backend:
-            #     requires:
-            #         - testing-backend
-            # - building-frontend:
-                # requires:
-                #     - testing-frontend
-                #     - building-backend
+            # Infrastructure Phase
+            # Creating Infrastructure Job
+            - creating-infrastructure:
+                filters:
+                    branches:
+                        only: master
+                requires:
+                    - analyzing-backend
+                    - analyzing-frontend
 
-            # Running Infrastructure Jobs
-            # - creating-infrastructure
-            #     requires:
-            #         - building-frontend
-            - creating-inventory
-                # requires:
-                #     - creating-infrastructure
+            # Configuration Jobs
+            - creating-inventory:
+                requires:
+                    - creating-infrastructure
             - configuring-backend-infrastructure:
                 requires:
                     - creating-inventory
-            - configuring-frontend-infrastructure:
+            - configuring-frontend:
                 requires:
                     - configuring-backend-infrastructure
-            - smoke-test:
+
+            # Deploying Infrastructure Jobs
+            - deploying-backend:
                 requires:
-                    - configuring-frontend-infrastructure
+                    - configuring-frontend
+            - deploying-frontend:
+                requires:
+                    - deploying-backend
+
+            # Application Testing Phase
+            - smoke-testing:
+                requires:
+                    - deploying-frontend
+
+            # Production Phase
+            - promoting-to-production:
+                requires:
+                    - smoke-testing
+
+            # Clean up Phase
+            - cleaning-up:
+                requires:
+                    - promoting-to-production
