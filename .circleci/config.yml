@@ -254,6 +254,32 @@ jobs:
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-configure.yml
             - rollback-infrastructure
 
+    # Configuring Frontend
+    configuring-frontend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - install-aws
+            - run:
+                name: "Adding .env file for Frontend"
+                command: |
+                    API_HOST=$(curl -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request GET https://api.memstash.io/values/backend)     
+                    export API_URL=http://$API_HOST:3030
+                    echo "API_URL=$API_URL" >> frontend/.env
+            - run:
+                name: "Baking backend API_URL into the front-end"
+                command: |
+                    sudo npm install webpack-dev-server -g
+                    cd frontend
+                    sudo npm i
+                    sudo npm run build
+            - persist_to_workspace:
+                root: ~/project
+                paths:
+                    - ./frontend
+            - rollback-infrastructure
+
     # Smoke Testing Services
     smoke-test:
         docker:
@@ -283,30 +309,6 @@ jobs:
                     fi
             - rollback-infrastructure
             - rollback-database
-
-    # Configuring Frontend Infrastructure
-    configuring-frontend-infrastructure:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run:
-                name: "Baking backend API_URL into the front-end"
-                command: | 
-                    API_HOST=$(curl -H "token: b5e154a8-0ab1-41c6-8855-47f61d4f7873" --request GET https://api.memstash.io/values/backend)     
-                    export API_URL=http://$API_HOST:3030
-                    echo $API_URL >> frontend/.env
-                    cd frontend && npm i && npm run build
-            - run:
-                name: "Installing AWS-CLI"
-                command: |
-                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip awscliv2.zip
-                    sudo ./aws/install
-            - run:
-                name: "Copying compiled files to the S3 Bucket"
-                command: |
-                    aws s3 cp ./frontend/dist s3://udapeople-f237b39 --recursive
 
 workflows:
     analyzing-testing-building-deploying:
