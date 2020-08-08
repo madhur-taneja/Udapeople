@@ -302,33 +302,56 @@ jobs:
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-deploy.yml
             - rollback-infrastructure
 
-    # Smoke Testing Services
-    smoke-test:
+    # Deploying Frontend
+    deploying-frontend:
         docker:
-            - image: circleci/node:13.8.0
+            - image: amazon/aws-cli
+        steps:
+            - run:
+                name: Install tar/gzip utility
+                command: |
+                    yum -y install tar gzip
+            - attach_workspace:
+                at: ~/project
+            - run:
+                name: "Copying compiled files to the S3 Bucket"
+                command: |
+                    cat ./frontend/.env
+                    aws s3 cp ./frontend/dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
+            - rollback-infrastructure
+
+    # Smoke Testing Services
+    smoke-testing:
+        docker:
+            -   image: circleci/node:13.8.0
         steps:
             - checkout
+            - install-aws
             - run:
                 name: "Backend Smoke Test"
                 command: |
-                    API_HOST=$(curl -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request GET https://api.memstash.io/values/backend)     
+                    API_HOST=$(curl -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request GET https://api.memstash.io/values/backend)
                     export API_URL=http://$API_HOST:3030
-                    if curl "http://${API_URL}:3030/api/status" | grep "statusCode"
-                    then
-                    return 1
-                    else
-                    return 0
-                    fi
+                    function backendSmokeTest
+                    {
+                        if (( $( curl -s ${API_URL}/api/status | grep -c status ) == 0 ))
+                        then return 1;
+                        else return 0;
+                        fi
+                    }
+                    backendSmokeTest
             - run:
                 name: "Frontend Smoke Test"
                 command: |
-                    URL="http://udapeople-f237b39.s3-website-us-east-1.amazonaws.com/#/employees"            
-                    if curl -s ${URL} | grep "Welcome"
-                    then
-                    return 1
-                    else
-                    return 0
-                    fi
+                    URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"
+                    function frontendSmokeTest
+                    {
+                        if (( $( curl -s ${URL} | grep -c Welcome ) > 0 ))
+                        then return 0; 
+                        else return 1; 
+                        fi
+                    }
+                    frontendSmokeTest
             - rollback-infrastructure
             - rollback-database
 
