@@ -78,6 +78,55 @@ jobs:
             #     paths:
             #         - frontend
 
+    # Testing Code
+    testing-backend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run:
+                  name: "Installing JUnit and coverage"
+                  command: |
+                        yarn add --dev jest
+                        yarn add --dev jest-junit
+            - run:
+                  name: "Running tests for Backend with JUnit as reporter"
+                  command: |
+                      sudo npm install webpack-dev-server -g
+                      cd backend
+                      mkdir junit
+                      sudo npm i
+                      sudo npm run test-circleci
+            - store_artifacts:
+                  path: ./backend/junit
+                  destination: junit
+            - store_test_results:
+                  path: ./backend/junit
+
+    testing-frontend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run:
+                  name: "Installing JUnit and coverage"
+                  command: |
+                        yarn add --dev jest
+                        yarn add --dev jest-junit
+            - run:
+                  name: "Running tests for Frontend with JUnit as reporter"
+                  command: |
+                      sudo npm install webpack-dev-server -g
+                      cd frontend
+                      mkdir junit
+                      sudo npm i
+                      sudo npm run test-circleci
+            - store_artifacts:
+                  path: ./frontend/junit
+                  destination: junit
+            - store_test_results:
+                  path: ./frontend/junit    
+
     # Smoke Testing Services
     smoke-test:
         docker:
@@ -227,21 +276,6 @@ jobs:
         steps:
             - checkout
             - run: cd frontend && npm i && npm audit fix --audit-level=critical --force
-
-    # Testing Code
-    testing-frontend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd frontend && npm i && npm run test
-
-    testing-backend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd backend && npm i && npm run test
 
 workflows:
     analyzing-testing-building-deploying:
