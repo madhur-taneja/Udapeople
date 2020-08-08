@@ -151,6 +151,35 @@ jobs:
                     sudo npm i
                     sudo npm audit fix --audit-level=critical --force
 
+    # Creating Infrastructure
+    creating-infrastructure:
+        docker:
+            - image: amazon/aws-cli
+        steps:
+            - checkout
+            - run:
+                name: "Ensure Network Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/network.yml \
+                        --stack-name udapeople-network-stack \
+                        --parameter-overrides EnvironmentName=UdaPeople-Env
+            - run:
+                name: "Ensure Backend Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/backend.yml \
+                        --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+            - run:
+                name: "Ensure Frontend Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/frontend.yml \
+                        --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+            - rollback-infrastructure
+
     # Smoke Testing Services
     smoke-test:
         docker:
@@ -255,36 +284,6 @@ jobs:
                 root: ~/project
                 paths:
                     - ./.circleci/ansible/inventory
-
-    # Creating Infrastructure
-    creating-infrastructure:
-        docker:
-            - image: amazon/aws-cli
-        steps:
-            - checkout
-            # - run:
-            #     name: Ensure Network & Cloudfront infrastructure exist
-            #     command: |
-            #             aws cloudformation deploy \
-            #                 --template-file ./.circleci/files/network.yml \
-            #                 --stack-name udapeople-network-stack \
-            #                 --parameter-overrides EnvironmentName=${UdaPeople-Env}
-            #             aws cloudformation deploy \
-            #                 --template-file ./.circleci/files/cloudfront.yml \
-            #                 --stack-name udapeople-cloudfront-stack \
-            #                 --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
-            - run:
-                name: Ensure Backend & Frontend infrastructure exist
-                command: |
-                        aws cloudformation deploy \
-                            --template-file ./.circleci/files/backend.yml \
-                            --stack-name udapeople-backend-stack \
-                            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-                        aws cloudformation deploy \
-                            --template-file ./.circleci/files/frontend.yml \
-                            --stack-name udapeople-frontend-stack \
-                            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            - rollback-infrastructure
 
 workflows:
     analyzing-testing-building-deploying:
