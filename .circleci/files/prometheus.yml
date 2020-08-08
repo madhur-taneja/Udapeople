@@ -1,0 +1,47 @@
+Description: >
+  UdaPeople prometheus stack.
+
+Parameters:
+  ID:
+    Description: Unique identifier.
+    Type: String
+
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub UdaPeople-${ID}
+      GroupDescription: Allow port 22, port 9090, port 9093 and port 9100.
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH for Admin
+        - IpProtocol: tcp
+          FromPort: 9090
+          ToPort: 9090
+          Description: Prometheus Server
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9093
+          ToPort: 9093
+          CidrIp: 0.0.0.0/0
+          Description: Alert Manager
+        - IpProtocol: tcp
+          FromPort: 9100
+          ToPort: 9100
+          CidrIp: 0.0.0.0/0
+          Description: Prometheus Node Exporter
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SecurityGroups:
+        - Ref: InstanceSecurityGroup
+      KeyName: circleci
+      ImageId: ami-0d57c0143330e1fa7
+      Tags:
+        - Key: Name
+          Value: !Sub prometheus-server
