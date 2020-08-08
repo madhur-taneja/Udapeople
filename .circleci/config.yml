@@ -214,12 +214,12 @@ jobs:
                     --output text >> ./.circleci/ansible/inventory
                     cat ./.circleci/ansible/inventory
                     pwd
-            - run:
-                name: "Storing the Backend IP Address to Memstash as Frontend needs it"
-                command: |
-                    ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
-                    echo $ip_address
-                    curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $ip_address https://api.memstash.io/values/backend
+            # - run:
+            #     name: "Storing the Backend IP Address to Memstash as Frontend needs it"
+            #     command: |
+            #         ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
+            #         echo $ip_address
+            #         curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $ip_address https://api.memstash.io/values/backend
             - run:
                 name: "Install tar/gzip utility"
                 command: |
@@ -411,6 +411,7 @@ jobs:
         docker:
             - image: amazon/aws-cli
         steps:
+            - checkout
             - run:
                 name: "Creating Infrastructure for Prometheus"
                 command: |
@@ -427,13 +428,17 @@ jobs:
             - run:
                 name: "Get the IP Address of the Prometheus EC2 instance"
                 command: |
-                    echo -e "\n[prom]\n" > ./.circleci/ansible/inventory
+                    echo -e "\n[prom]\n" >> ./.circleci/ansible/inventory
                     aws ec2 describe-instances \
                     --filters "Name=tag:Name,Values=prometheus-server" \
                     --query 'Reservations[*].Instances[*].PublicIpAddress' \
                     --output text >> ./.circleci/ansible/inventory
                     cat ./.circleci/ansible/inventory
                     pwd
+            - persist_to_workspace:
+                root: ~/project
+                paths:
+                    - ./.circleci/ansible/inventory
             - rollback-prometheus-infrastructure
 
     configuring-prometheus-server:
@@ -460,75 +465,76 @@ jobs:
 workflows:
     building-testing-analyzing-creating-configuring-deploying:
         jobs:
-            # Build Phase
-            - building-backend
-            - building-frontend
+            # # Build Phase
+            # - building-backend
+            # - building-frontend
 
-            # Test Phase
-            - testing-backend:
-                requires:
-                    - building-backend
-            - testing-frontend:
-                requires:
-                    - building-frontend
+            # # Test Phase
+            # - testing-backend:
+            #     requires:
+            #         - building-backend
+            # - testing-frontend:
+            #     requires:
+            #         - building-frontend
             
-            # Analyse Phase
-            - analyzing-backend:
-                requires:
-                    - testing-backend
-            - analyzing-frontend:
-                requires:
-                    - testing-frontend
+            # # Analyse Phase
+            # - analyzing-backend:
+            #     requires:
+            #         - testing-backend
+            # - analyzing-frontend:
+            #     requires:
+            #         - testing-frontend
 
-            # Infrastructure Phase
-            # Creating Infrastructure Job
-            - creating-infrastructure:
-                filters:
-                    branches:
-                        only: master
-                requires:
-                    - analyzing-backend
-                    - analyzing-frontend
+            # # Infrastructure Phase
+            # # Creating Infrastructure Job
+            # - creating-infrastructure:
+            #     filters:
+            #         branches:
+            #             only: master
+            #     requires:
+            #         - analyzing-backend
+            #         - analyzing-frontend
 
-            # Configuration Jobs
-            - creating-inventory:
-                requires:
-                    - creating-infrastructure
-            - configuring-backend-infrastructure:
-                requires:
-                    - creating-inventory
-            - configuring-frontend:
-                requires:
-                    - configuring-backend-infrastructure
+            # # Configuration Jobs
+            - creating-inventory
+            #     requires:
+            #         - creating-infrastructure
+            # - configuring-backend-infrastructure:
+            #     requires:
+            #         - creating-inventory
+            # - configuring-frontend:
+            #     requires:
+            #         - configuring-backend-infrastructure
 
-            # Deploying Infrastructure Jobs
-            - deploying-backend:
-                requires:
-                    - configuring-frontend
-            - deploying-frontend:
-                requires:
-                    - deploying-backend
+            # # Deploying Infrastructure Jobs
+            # - deploying-backend:
+            #     requires:
+            #         - configuring-frontend
+            # - deploying-frontend:
+            #     requires:
+            #         - deploying-backend
 
-            # Application Testing Phase
-            - smoke-testing:
-                requires:
-                    - deploying-frontend
+            # # Application Testing Phase
+            # - smoke-testing:
+            #     requires:
+            #         - deploying-frontend
 
-            # Production Phase
-            - promoting-to-production:
-                requires:
-                    - smoke-testing
+            # # Production Phase
+            # - promoting-to-production:
+            #     requires:
+            #         - smoke-testing
 
-            # Clean up Phase
-            - cleaning-up:
-                requires:
-                    - promoting-to-production
+            # # Clean up Phase
+            # - cleaning-up:
+            #     requires:
+            #         - promoting-to-production
 
             # Monitoring Phase
             # Creating Infrastructure Job
             - creating-prometheus-infrastructure:
                 requires:
-                    - cleaning-up
+                #     - cleaning-up
+                    - creating-inventory
 
             # Configuration Job
             - configuring-prometheus-server:

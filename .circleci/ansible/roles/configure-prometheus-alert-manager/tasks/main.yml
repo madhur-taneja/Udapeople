@@ -7,10 +7,12 @@
 
 - name: "Moving multiple binaries"
   become: true
-  copy: src= "/tmp/alertmanager-0.21.0.linux-amd64/{{ item.src }}" dest= "/usr/local/bin/{{ item.dest }}"
-  remote_src: yes
-  mode: '0777'
-  with_items:
+  copy: 
+    src: "/tmp/alertmanager-0.21.0.linux-amd64/{{ item.src }}"
+    dest: "/usr/local/bin/{{ item.dest }}"
+    remote_src: yes
+    mode: '0777'
+  loop:
     - { src: 'alertmanager', dest: 'alertmanager' }
     - { src: 'amtool', dest: 'amtool' }
 
@@ -22,11 +24,24 @@
 
 - name: "Adding alert manager configurations"
   become: true
-  copy: src= "{{ item.src }}" dest= "{{ item.dest }}"
-  with_items:
+  copy: 
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
     - { src: 'alertmanager.yml', dest: '/etc/prometheus/' }
     - { src: 'rules.yml', dest: '/etc/prometheus/' }
     - { src: 'alertmanager.service', dest: '/etc/systemd/system/' }
+
+- name: "Ansible replace string"
+  become: true
+  replace:
+    path: /etc/prometheus/alertmanager.yml
+    regexp: '{{item.From}}'
+    replace: '{{item.To}}'
+  loop:
+    - { From: "EMAIL_ID", To: "{{ lookup('env','EMAIL_ID') }}" }
+    - { From: "EMAIL_PASSWORD", To: "{{ lookup('env', 'EMAIL_PASSWORD') }}" }
+
 
 - name: "Enabling alert manager service"
   become: true
@@ -35,8 +50,3 @@
     daemon_reload: yes
     name: alertmanager
     enabled: yes
-
-- name: "Changing the permissions of the directories, files and binaries"
-  become: true
-  shell: |
-    chown -R prometheus:prometheus /etc/prometheus

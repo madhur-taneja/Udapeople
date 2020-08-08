@@ -14,10 +14,12 @@
 
 - name: "Moving multiple binaries"
   become: true
-  copy: src= "/tmp/prometheus-2.19.0.linux-amd64/{{ item.src }}" dest= "{{ item.dest }}"
-  remote_src: yes
-  mode: '0777'
-  with_items:
+  copy:
+    src: "/tmp/prometheus-2.19.0.linux-amd64/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: yes
+    mode: '0777'
+  loop:
     - { src: 'prometheus', dest: '/usr/local/bin/prometheus' }
     - { src: 'promtool', dest: '/usr/local/bin/promtool' }
     - { src: 'consoles', dest: '/etc/prometheus' }
@@ -30,19 +32,30 @@
 
 - name: "Adding prometheus server configurations"
   become: true
-  copy: src= "{{ item.src }}" dest= "{{ item.dest }}"
-  with_items:
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
     - { src: 'prometheus.yml', dest: '/etc/prometheus/' }
     - { src: 'prometheus.service', dest: '/etc/systemd/system/' }
+
+- name: "Ansible replace string"
+  become: true
+  replace:
+    path: /etc/prometheus/prometheus.yml
+    regexp: '{{item.From}}'
+    replace: '{{item.To}}'
+  loop:
+    - { From: "AWS_ACCESS_KEY_ID", To: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}" }
+    - { From: "AWS_SECRET_ACCESS_KEY", To: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}" }
+
 
 - name: "Changing the permissions of the directories, files and binaries"
   become: true
   shell: |
-    chown prometheus:prometheus /etc/prometheus
     chown prometheus:prometheus /usr/local/bin/prometheus
     chown prometheus:prometheus /usr/local/bin/promtool
-    chown -R prometheus:prometheus /etc/prometheus/consoles
-    chown -R prometheus:prometheus /etc/prometheus/console_libraries
+    chown -R prometheus:prometheus /etc/prometheus
     chown -R prometheus:prometheus /var/lib/prometheus
 
 - name: "Enabling prometheus service"
