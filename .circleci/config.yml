@@ -42,6 +42,42 @@ commands:
                 circleci-agent step halt
 
 jobs:
+    # Building Code
+    building-backend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - run: 
+                name: "Installing packages and Building Code"
+                command: |
+                    sudo npm install webpack-dev-server -g
+                    cd backend
+                    sudo npm i 
+                    sudo npm run build
+            # - persist_to_workspace:
+            #     root: ~/project
+            #     paths:
+            #         - backend
+
+    building-frontend:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            
+            - run: 
+                name: "Installing packages and Building Code"
+                command: |
+                    sudo npm install webpack-dev-server -g
+                    cd frontend
+                    sudo npm i 
+                    sudo npm run build
+            # - persist_to_workspace:
+            #     root: ~/project
+            #     paths:
+            #         - frontend
+
     # Smoke Testing Services
     smoke-test:
         docker:
@@ -206,29 +242,6 @@ jobs:
         steps:
             - checkout
             - run: cd backend && npm i && npm run test
-
-    # Building Code
-    building-frontend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd frontend && npm i && npm run build
-            - persist_to_workspace:
-                root: ~/project
-                paths:
-                    - frontend/dist
-
-    building-backend:
-        docker:
-            - image: circleci/node:13.8.0
-        steps:
-            - checkout
-            - run: cd backend && npm i && npm run build
-            - persist_to_workspace:
-                root: ~/project
-                paths:
-                    - backend/dist
 
 workflows:
     analyzing-testing-building-deploying:
