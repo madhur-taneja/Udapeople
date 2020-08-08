@@ -4,6 +4,17 @@ orbs:
 
 # Common commands among jobs 
 commands:
+    # Installing AWS CLI on Dockers
+    install-aws:
+        steps:
+        - run:
+            name: "Installing AWS-CLI"
+            command: |
+                sudo apt-get update && sudo apt-get install -yy less
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                unzip awscliv2.zip
+                sudo ./aws/install
+
     # Destroying Infrastructure
     rollback-infrastructure:
         steps:
