@@ -34,7 +34,7 @@ commands:
         steps:
             - run:
                 when: on_fail
-                name: "Destroying Backend Infrastructure"
+                name: "Destroying Prometheus Infrastructure"
                 command: |
                     aws cloudformation delete-stack --stack-name udapeople-prometheus-stack
 
@@ -169,57 +169,84 @@ jobs:
                     sudo npm i
                     sudo npm audit fix --audit-level=critical --force
 
-    # Creating Infrastructure
+    # Creating Infrastructure for Application
     creating-infrastructure:
         docker:
             - image: amazon/aws-cli
         steps:
             - checkout
             - run:
-                name: "Ensure Network Infrastructure exist"
+                name: "Ensuring Database Infrastructure exist"
                 command: |
                     aws cloudformation deploy \
-                        --template-file ./.circleci/files/network.yml \
-                        --stack-name udapeople-network-stack \
-                        --parameter-overrides EnvironmentName=UdaPeople-Env
-            - run:
-                name: "Ensure Backend Infrastructure exist"
-                command: |
-                    aws cloudformation deploy \
-                        --template-file ./.circleci/files/backend.yml \
-                        --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
-                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            - run:
-                name: "Ensure Frontend Infrastructure exist"
-                command: |
-                    aws cloudformation deploy \
-                        --template-file ./.circleci/files/frontend.yml \
-                        --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
-                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+                        --template-file ./.circleci/files/database.yml \
+                        --stack-name udapeople-database-stack \
+                        --parameter-overrides DBName=${TYPEORM_DATABASE} DBUsername=${TYPEORM_USERNAME} DBPassword=${TYPEORM_PASSWORD}
+            # - run:
+            #     name: "Ensuring Network Infrastructure exist"
+            #     command: |
+            #         aws cloudformation deploy \
+            #             --template-file ./.circleci/files/network.yml \
+            #             --stack-name udapeople-network-stack \
+            #             --parameter-overrides EnvironmentName=UdaPeople-Env
+            # - run:
+            #     name: "Ensuring Backend Infrastructure exist"
+            #     command: |
+            #         aws cloudformation deploy \
+            #             --template-file ./.circleci/files/backend.yml \
+            #             --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+            #             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+            # - run:
+            #     name: "Ensuring Frontend Infrastructure exist"
+            #     command: |
+            #         aws cloudformation deploy \
+            #             --template-file ./.circleci/files/frontend.yml \
+            #             --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+            #             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-infrastructure
 
-    # Creating Inventory with new EC2's IP address
-    creating-inventory:
+    # Fetching the new EC2's IP address and RDS's Hostname
+    retrieving-host-details:
         docker:
             - image: amazon/aws-cli
         steps:
             - checkout
             - run:
-                name: "Get the IP Address of the Backend EC2 instance"
+                name: "Get the IP Address of the Backend EC2 instance and create inventory"
                 command: |
                     echo -e "[web]\n" > ./.circleci/ansible/inventory
                     aws ec2 describe-instances \
-                    --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-                    --query 'Reservations[*].Instances[*].PublicIpAddress' \
-                    --output text >> ./.circleci/ansible/inventory
+                        --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+                        --query 'Reservations[*].Instances[*].PublicIpAddress' \
+                        --output text >> ./.circleci/ansible/inventory
                     cat ./.circleci/ansible/inventory
-                    pwd
             # - run:
             #     name: "Storing the Backend IP Address to Memstash as Frontend needs it"
             #     command: |
             #         ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
             #         echo $ip_address
             #         curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $ip_address https://api.memstash.io/values/backend
+            - run:
+                name: "Get the host address of the Database RDS instance and create backend environment file"
+                command: |
+                    TYPEORM_HOST=$( aws rds describe-db-instances \
+                        --db-instance-identifier ${TYPEORM_DATABASE} \
+                        --query "DBInstances[*].Endpoint.Address" \
+                        --output text )
+                    export TYPEORM_HOST
+                    echo -e "TYPEORM_HOST=$TYPEORM_HOST\n
+                        TYPEORM_CONNECTION=${TYPEORM_CONNECTION}\n
+                        TYPEORM_MIGRATIONS_DIR=${TYPEORM_MIGRATIONS_DIR}\n
+                        TYPEORM_ENTITIES=${TYPEORM_ENTITIES}\n
+                        TYPEORM_MIGRATIONS=${TYPEORM_MIGRATIONS}\n
+                        TYPEORM_PORT=${TYPEORM_PORT}\n
+                        TYPEORM_USERNAME=${TYPEORM_USERNAME}\n
+                        TYPEORM_PASSWORD=${TYPEORM_PASSWORD}\n
+                        TYPEORM_DATABASE=${TYPEORM_DATABASE}\n
+                        NODE_ENV=production\n
+                        ENVIRONMENT=production\n
+                        VERSION=1\n" > ./backend/.env
+                    cat ./backend/.env
             - run:
                 name: "Install tar/gzip utility"
                 command: |
@@ -228,7 +255,34 @@ jobs:
                 root: ~/project
                 paths:
                     - ./.circleci/ansible/inventory
+                    - ./backend/.env
             - rollback-infrastructure
+
+    # Running Database Migrations
+    running-database-migrations:
+        docker:
+            - image: circleci/node:13.8.0
+        steps:
+            - checkout
+            - install-aws
+            - attach_workspace:
+                at: ~/project
+            - run:
+                name: "Running DB migrations and saving to MemStash.io"
+                command: |
+                    pwd
+                    cd backend
+                    sudo npm i 
+                    sudo npm run build
+                    sudo npm run migrations > migrations.txt
+                    cat migrations.txt
+                    curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $(cat migrations.txt | grep -c "Migration AddEmployee1555722583168 has been executed successfully\|No migrations are pending") https://api.memstash.io/values/migrations
+            - persist_to_workspace:
+                root: ~/project
+                paths:
+                    - ./backend/migrations.txt
+            - rollback-infrastructure
+            - rollback-database
 
     # Configuring Backend Infrastructure
     configuring-backend-infrastructure:
@@ -241,26 +295,6 @@ jobs:
             - attach_workspace:
                 at: ~/project
             - run:
-                name: "Adding .env file for Backend"
-                command: |
-                    echo -e "NODE_ENV=production\n
-                        VERSION=1\n
-                        TYPEORM_CONNECTION=${TYPEORM_CONNECTION}\n
-                        TYPEORM_MIGRATIONS_DIR=${TYPEORM_MIGRATIONS_DIR}\n
-                        TYPEORM_ENTITIES=${TYPEORM_ENTITIES}\n
-                        TYPEORM_MIGRATIONS=${TYPEORM_MIGRATIONS}\n
-                        TYPEORM_HOST=${TYPEORM_HOST}\n
-                        TYPEORM_PORT=${TYPEORM_PORT}\n
-                        TYPEORM_USERNAME=${TYPEORM_USERNAME}\n
-                        TYPEORM_PASSWORD=${TYPEORM_PASSWORD}\n
-                        TYPEORM_DATABASE=${TYPEORM_DATABASE}\n
-                        ENVIRONMENT=production" > ./backend/.env
-                    cat ./backend/.env
-            - persist_to_workspace:
-                root: ~/project
-                paths:
-                    - ./backend/.env
-            - run:
                 name: "Installing dependencies"
                 command: |
                     apk add --update ansible && pip install awscli # install the dependencies needed for your playbook            
@@ -271,6 +305,7 @@ jobs:
                     pwd
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-configure.yml
             - rollback-infrastructure
+            - rollback-database
 
     # Configuring Frontend
     configuring-frontend:
@@ -297,6 +332,7 @@ jobs:
                 paths:
                     - ./frontend
             - rollback-infrastructure
+            - rollback-database
 
     # Deploying Backend
     deploying-backend:
@@ -319,6 +355,7 @@ jobs:
                     pwd
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-deploy.yml
             - rollback-infrastructure
+            - rollback-database
 
     # Deploying Frontend
     deploying-frontend:
@@ -337,6 +374,7 @@ jobs:
                     cat ./frontend/.env
                     aws s3 cp ./frontend/dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
             - rollback-infrastructure
+            - rollback-database
 
     # Smoke Testing Services
     smoke-testing:
@@ -387,6 +425,7 @@ jobs:
                         --stack-name udapeople-cloudfront-stack \
                         --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-infrastructure
+            - rollback-database
 
     # Cleaning up Old Infrastructure 
     cleaning-up:
@@ -405,6 +444,7 @@ jobs:
                     fi
                     curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data "${CIRCLE_WORKFLOW_ID:0:7}" https://api.memstash.io/values/Old_WorkflowID
             - rollback-infrastructure
+            - rollback-database
 
     # Setting up Back-End Monitoring
     creating-prometheus-infrastructure:
@@ -487,21 +527,24 @@ workflows:
 
             # # Infrastructure Phase
             # # Creating Infrastructure Job
-            # - creating-infrastructure:
-            #     filters:
-            #         branches:
-            #             only: master
+            - creating-infrastructure:
+                filters:
+                    branches:
+                        only: master
             #     requires:
             #         - analyzing-backend
             #         - analyzing-frontend
 
             # # Configuration Jobs
-            - creating-inventory
-            #     requires:
-            #         - creating-infrastructure
+            - retrieving-host-details:
+                requires:
+                    - creating-infrastructure
+            - running-database-migrations:
+                requires:
+                    - retrieving-host-details
             # - configuring-backend-infrastructure:
             #     requires:
-            #         - creating-inventory
+            #         - running-database-migrations
             # - configuring-frontend:
             #     requires:
             #         - configuring-backend-infrastructure
@@ -531,12 +574,11 @@ workflows:
 
             # Monitoring Phase
             # Creating Infrastructure Job
-            - creating-prometheus-infrastructure:
-                requires:
+            # - creating-prometheus-infrastructure:
+            #     requires:
                 #     - cleaning-up
-                    - creating-inventory
 
             # Configuration Job
-            - configuring-prometheus-server:
-                requires:
-                    - creating-prometheus-infrastructure
+            # - configuring-prometheus-server:
+            #     requires:
+            #         - creating-prometheus-infrastructure

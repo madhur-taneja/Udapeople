@@ -18,23 +18,9 @@
         cd /home/ubuntu/backend    
         npm i && npm run build  
 
--   name: "Running DB migrations and Saving to Memstash.io"
+-   name: "Running Backend service"
     become: true
     shell: |
         cd /home/ubuntu/backend
-        npm run migrations > migrations.txt
-        cat migrations.txt
-        curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $(cat migrations.txt | grep -c "Migration AddEmployee1555722583168 has been executed successfully\|No migrations are pending") https://api.memstash.io/values/migrations
-
--   name: "Running Backend service if migrations are successful"
-    become: true
-    shell: |
-        cd /home/ubuntu/backend
-        if [ $(cat migrations.txt | grep -c "Migration AddEmployee1555722583168 has been executed successfully\|No migrations are pending") > 0 ]
-        then
-            pm2 install typescript
-            pm2 start npm --no-automation --name "default" -- run start
-            echo "Service up" > serverLogUp.txt
-        else 
-            echo "Service not up" > serverLogDown.txt
-        fi
+        pm2 install typescript  
+        pm2 start npm --no-automation --name "backend" -- run start
