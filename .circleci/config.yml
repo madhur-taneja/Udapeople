@@ -6,6 +6,7 @@ orbs:
 commands:
     # Installing AWS CLI on Dockers
     install-aws:
+        description: "Installation"
         steps:
             - run:
                 name: "Installing AWS-CLI"
@@ -17,20 +18,25 @@ commands:
 
     # Destroying Infrastructure
     rollback-infrastructure:
+        description: "Destroying Infrastructure"
+        parameters:
+            workflow_id:
+                type: string
         steps:
             - run:
                 when: on_fail
                 name: "Destroying Backend Infrastructure"
                 command: |
-                    aws cloudformation delete-stack --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7}
+                    aws cloudformation delete-stack --stack-name udapeople-backend-stack-<< parameters.workflow_id >>
             - run:
                 when: on_fail
                 name: "Destroying Frontend Infrastructure"
                 command: |
-                    aws s3 rb s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --force || true
-                    aws cloudformation delete-stack --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7}
+                    aws s3 rb s3://udapeople-<< parameters.workflow_id >> --force || true
+                    aws cloudformation delete-stack --stack-name udapeople-frontend-stack-<< parameters.workflow_id >>
 
     rollback-prometheus-infrastructure:
+        description: "Destroying Prometheus Infrastructure"
         steps:
             - run:
                 when: on_fail
@@ -40,6 +46,7 @@ commands:
 
     # Reverting Database Migration
     rollback-database:
+        description: "Reverting Database"
         steps:
         - run:
             when: on_fail
@@ -175,13 +182,13 @@ jobs:
             - image: amazon/aws-cli
         steps:
             - checkout
-            - run:
-                name: "Ensuring Database Infrastructure exist"
-                command: |
-                    aws cloudformation deploy \
-                        --template-file ./.circleci/files/database.yml \
-                        --stack-name udapeople-database-stack \
-                        --parameter-overrides DBName=${TYPEORM_DATABASE} DBUsername=${TYPEORM_USERNAME} DBPassword=${TYPEORM_PASSWORD}
+            # - run:
+            #     name: "Ensuring Database Infrastructure exist"
+            #     command: |
+            #         aws cloudformation deploy \
+            #             --template-file ./.circleci/files/database.yml \
+            #             --stack-name udapeople-database-stack \
+            #             --parameter-overrides DBName=${TYPEORM_DATABASE} DBUsername=${TYPEORM_USERNAME} DBPassword=${TYPEORM_PASSWORD}
             # - run:
             #     name: "Ensuring Network Infrastructure exist"
             #     command: |
@@ -196,14 +203,15 @@ jobs:
             #             --template-file ./.circleci/files/backend.yml \
             #             --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
             #             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            # - run:
-            #     name: "Ensuring Frontend Infrastructure exist"
-            #     command: |
-            #         aws cloudformation deploy \
-            #             --template-file ./.circleci/files/frontend.yml \
-            #             --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
-            #             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-            - rollback-infrastructure
+            - run:
+                name: "Ensuring Frontend Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/frontend.yml \
+                        --stack-name udapeople-frontend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
     # Fetching the new EC2's IP address and RDS's Hostname
     retrieving-host-details:
@@ -256,7 +264,8 @@ jobs:
                 paths:
                     - ./.circleci/ansible/inventory
                     - ./backend/.env
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
     # Running Database Migrations
     running-database-migrations:
@@ -281,7 +290,8 @@ jobs:
                 root: ~/project
                 paths:
                     - ./backend/migrations.txt
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Configuring Backend Infrastructure
@@ -304,7 +314,8 @@ jobs:
                     cat ./.circleci/ansible/inventory
                     pwd
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-configure.yml
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Configuring Frontend
@@ -331,7 +342,8 @@ jobs:
                 root: ~/project
                 paths:
                     - ./frontend
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Deploying Backend
@@ -354,7 +366,8 @@ jobs:
                     cat ./.circleci/ansible/inventory
                     pwd
                     cd .circleci/ansible && ansible-playbook -i inventory playbook-deploy.yml
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Deploying Frontend
@@ -373,7 +386,8 @@ jobs:
                 command: |
                     cat ./frontend/.env
                     aws s3 cp ./frontend/dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Smoke Testing Services
@@ -408,7 +422,8 @@ jobs:
                         fi
                     }
                     frontendSmokeTest
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Promoting Infrastructure to Production Phase
@@ -424,7 +439,8 @@ jobs:
                         --template-file ./.circleci/files/cloudfront.yml \
                         --stack-name udapeople-cloudfront-stack \
                         --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Cleaning up Old Infrastructure 
@@ -443,7 +459,8 @@ jobs:
                         aws cloudformation delete-stack --stack-name udapeople-frontend-stack-${OLD_WorkflowID}
                     fi
                     curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data "${CIRCLE_WORKFLOW_ID:0:7}" https://api.memstash.io/values/Old_WorkflowID
-            - rollback-infrastructure
+            - rollback-infrastructure:
+                workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
             - rollback-database
 
     # Setting up Back-End Monitoring
