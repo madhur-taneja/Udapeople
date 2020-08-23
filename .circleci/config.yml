@@ -182,27 +182,27 @@ jobs:
             - image: amazon/aws-cli
         steps:
             - checkout
-            # - run:
-            #     name: "Ensuring Database Infrastructure exist"
-            #     command: |
-            #         aws cloudformation deploy \
-            #             --template-file ./.circleci/files/database.yml \
-            #             --stack-name udapeople-database-stack \
-            #             --parameter-overrides DBName=${TYPEORM_DATABASE} DBUsername=${TYPEORM_USERNAME} DBPassword=${TYPEORM_PASSWORD}
-            # - run:
-            #     name: "Ensuring Network Infrastructure exist"
-            #     command: |
-            #         aws cloudformation deploy \
-            #             --template-file ./.circleci/files/network.yml \
-            #             --stack-name udapeople-network-stack \
-            #             --parameter-overrides EnvironmentName=UdaPeople-Env
-            # - run:
-            #     name: "Ensuring Backend Infrastructure exist"
-            #     command: |
-            #         aws cloudformation deploy \
-            #             --template-file ./.circleci/files/backend.yml \
-            #             --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
-            #             --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
+            - run:
+                name: "Ensuring Database Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/database.yml \
+                        --stack-name udapeople-database-stack \
+                        --parameter-overrides DBName=${TYPEORM_DATABASE} DBUsername=${TYPEORM_USERNAME} DBPassword=${TYPEORM_PASSWORD}
+            - run:
+                name: "Ensuring Network Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/network.yml \
+                        --stack-name udapeople-network-stack \
+                        --parameter-overrides EnvironmentName=UdaPeople-Env
+            - run:
+                name: "Ensuring Backend Infrastructure exist"
+                command: |
+                    aws cloudformation deploy \
+                        --template-file ./.circleci/files/backend.yml \
+                        --stack-name udapeople-backend-stack-${CIRCLE_WORKFLOW_ID:0:7} \
+                        --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
             - run:
                 name: "Ensuring Frontend Infrastructure exist"
                 command: |
@@ -228,12 +228,12 @@ jobs:
                         --query 'Reservations[*].Instances[*].PublicIpAddress' \
                         --output text >> ./.circleci/ansible/inventory
                     cat ./.circleci/ansible/inventory
-            # - run:
-            #     name: "Storing the Backend IP Address to Memstash as Frontend needs it"
-            #     command: |
-            #         ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
-            #         echo $ip_address
-            #         curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $ip_address https://api.memstash.io/values/backend
+            - run:
+                name: "Storing the Backend IP Address to Memstash as Frontend needs it"
+                command: |
+                    ip_address=$(tail -n 1 ./.circleci/ansible/inventory)
+                    echo $ip_address
+                    curl -H "Content-Type: text/plain" -H "token: 476e5d93-3bfe-4549-89d1-d7f73212ec47" --request PUT --data $ip_address https://api.memstash.io/values/backend
             - run:
                 name: "Get the host address of the Database RDS instance and create backend environment file"
                 command: |
@@ -523,24 +523,24 @@ workflows:
     building-testing-analyzing-creating-configuring-deploying:
         jobs:
             # # Build Phase
-            # - building-backend
-            # - building-frontend
+            - building-backend
+            - building-frontend
 
             # # Test Phase
-            # - testing-backend:
-            #     requires:
-            #         - building-backend
-            # - testing-frontend:
-            #     requires:
-            #         - building-frontend
+            - testing-backend:
+                requires:
+                    - building-backend
+            - testing-frontend:
+                requires:
+                    - building-frontend
             
             # # Analyse Phase
-            # - analyzing-backend:
-            #     requires:
-            #         - testing-backend
-            # - analyzing-frontend:
-            #     requires:
-            #         - testing-frontend
+            - analyzing-backend:
+                requires:
+                    - testing-backend
+            - analyzing-frontend:
+                requires:
+                    - testing-frontend
 
             # # Infrastructure Phase
             # # Creating Infrastructure Job
@@ -548,9 +548,9 @@ workflows:
                 filters:
                     branches:
                         only: master
-            #     requires:
-            #         - analyzing-backend
-            #         - analyzing-frontend
+                requires:
+                    - analyzing-backend
+                    - analyzing-frontend
 
             # # Configuration Jobs
             - retrieving-host-details:
@@ -559,43 +559,43 @@ workflows:
             - running-database-migrations:
                 requires:
                     - retrieving-host-details
-            # - configuring-backend-infrastructure:
-            #     requires:
-            #         - running-database-migrations
-            # - configuring-frontend:
-            #     requires:
-            #         - configuring-backend-infrastructure
+            - configuring-backend-infrastructure:
+                requires:
+                    - running-database-migrations
+            - configuring-frontend:
+                requires:
+                    - configuring-backend-infrastructure
 
             # # Deploying Infrastructure Jobs
-            # - deploying-backend:
-            #     requires:
-            #         - configuring-frontend
-            # - deploying-frontend:
-            #     requires:
-            #         - deploying-backend
+            - deploying-backend:
+                requires:
+                    - configuring-frontend
+            - deploying-frontend:
+                requires:
+                    - deploying-backend
 
             # # Application Testing Phase
-            # - smoke-testing:
-            #     requires:
-            #         - deploying-frontend
+            - smoke-testing:
+                requires:
+                    - deploying-frontend
 
             # # Production Phase
-            # - promoting-to-production:
-            #     requires:
-            #         - smoke-testing
+            - promoting-to-production:
+                requires:
+                    - smoke-testing
 
             # # Clean up Phase
-            # - cleaning-up:
-            #     requires:
-            #         - promoting-to-production
+            - cleaning-up:
+                requires:
+                    - promoting-to-production
 
             # Monitoring Phase
             # Creating Infrastructure Job
-            # - creating-prometheus-infrastructure:
-            #     requires:
-                #     - cleaning-up
+            - creating-prometheus-infrastructure:
+                requires:
+                    - cleaning-up
 
             # Configuration Job
-            # - configuring-prometheus-server:
-            #     requires:
-            #         - creating-prometheus-infrastructure
+            - configuring-prometheus-server:
+                requires:
+                    - creating-prometheus-infrastructure
